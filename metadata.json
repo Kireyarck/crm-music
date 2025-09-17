@@ -1,0 +1,7 @@
+{
+  "name": "Creative Artist CRM",
+  "description": "A lightweight and productive CRM for a multi-talented artist, organizing creative projects and integrating AI tools for deep creative support. It prioritizes speed, offline-friendly editing, and custom LLM API integration.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
