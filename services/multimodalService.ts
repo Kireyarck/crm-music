@@ -3,7 +3,22 @@ import { getAiSettings } from "./settingsService";
 import { ChatMessage } from '../types';
 import dataService from "./dataService";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+let ai: GoogleGenAI | null = null;
+
+// Lazy initialization of the AI client
+const getAiClient = (): GoogleGenAI => {
+  if (!ai) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      const errorMessage = "A chave da API do Google Gemini (API_KEY) não está configurada no ambiente de execução. As funcionalidades de IA estão desativadas.";
+      console.error(errorMessage);
+      alert(errorMessage); // Alert the user for immediate feedback
+      throw new Error(errorMessage);
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
 
 export const generateTextResponse = async (prompt: string, history: ChatMessage[]): Promise<string> => {
   const settings = getAiSettings();
@@ -37,7 +52,7 @@ Tasks: ${JSON.stringify(tasks, null, 2)}
   ];
 
   try {
-    const response = await ai.models.generateContent({ model, contents, config: { systemInstruction } });
+    const response = await getAiClient().models.generateContent({ model, contents, config: { systemInstruction } });
     return response.text;
   } catch (error) {
     console.error("Error generating text response:", error);
@@ -53,7 +68,7 @@ export const generateImageResponse = async (prompt: string): Promise<string> => 
   
   try {
     const model = settings.image.model || 'imagen-4.0-generate-001';
-    const response = await ai.models.generateImages({
+    const response = await getAiClient().models.generateImages({
         model,
         prompt,
         config: { numberOfImages: 1, outputMimeType: 'image/png' },
@@ -75,11 +90,11 @@ export const generateVideoResponse = async (prompt: string): Promise<string> => 
 
   try {
     const model = settings.video.model || 'veo-2.0-generate-001';
-    let operation = await ai.models.generateVideos({ model, prompt, config: { numberOfVideos: 1 } });
+    let operation = await getAiClient().models.generateVideos({ model, prompt, config: { numberOfVideos: 1 } });
     
     while (!operation.done) {
       await new Promise(resolve => setTimeout(resolve, 10000));
-      operation = await ai.operations.getVideosOperation({ operation: operation });
+      operation = await getAiClient().operations.getVideosOperation({ operation: operation });
     }
 
     const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;

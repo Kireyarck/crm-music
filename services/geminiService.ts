@@ -1,10 +1,25 @@
 // Implemented Gemini API service functions adhering to coding guidelines.
 import { GoogleGenAI } from "@google/genai";
-import { Idea, ChatMessage, Project, Task } from "../types";
+import { Idea, ChatMessage } from "../types";
 import { getAiSettings } from "./settingsService";
 
-// FIX: Initialize GoogleGenAI with a named apiKey parameter as per guidelines, using process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+let ai: GoogleGenAI | null = null;
+
+// Lazy initialization of the AI client
+const getAiClient = (): GoogleGenAI => {
+  if (!ai) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      const errorMessage = "A chave da API do Google Gemini (API_KEY) não está configurada no ambiente de execução. As funcionalidades de IA estão desativadas.";
+      console.error(errorMessage);
+      alert(errorMessage); // Alert the user for immediate feedback
+      throw new Error(errorMessage);
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
+
 
 // Helper to convert File object to a base64 string for the API
 const fileToGenerativePart = async (file: File) => {
@@ -52,7 +67,7 @@ Keep your responses concise, inspiring, and focused on musical creativity.`;
   ];
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model,
       contents,
       config: {
@@ -81,7 +96,7 @@ export const transcribeAudio = async (audioFile: File): Promise<string> => {
     const prompt = `Transcribe the following audio. The audio contains a musician speaking or singing a musical idea. Transcribe the lyrics or the spoken idea. If it's a melody without lyrics, describe it.`;
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await getAiClient().models.generateContent({
             model,
             contents: { parts: [audioPart, { text: prompt }] },
         });
