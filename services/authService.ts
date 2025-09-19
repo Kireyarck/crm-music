@@ -20,7 +20,12 @@ interface StoredUser {
  */
 export const hasUser = (): boolean => {
   try {
-    return !!localStorage.getItem(USER_CREDENTIALS_KEY);
+    const creds = localStorage.getItem(USER_CREDENTIALS_KEY);
+    if (!creds) return false;
+
+    const parsedCreds = JSON.parse(creds);
+    // A user exists if the credentials object is not empty and has a username.
+    return typeof parsedCreds === 'object' && parsedCreds !== null && !!parsedCreds.username;
   } catch (error) {
     console.error("Error accessing localStorage:", error);
     return false;
@@ -34,6 +39,11 @@ export const hasUser = (): boolean => {
 export const signUp = async (username: string, password: string, recoveryPassword: string): Promise<boolean> => {
   if (hasUser()) {
     console.error("A user already exists. This mock service only supports one user.");
+    return false;
+  }
+
+  if (!username.trim()) {
+    console.error("Username cannot be empty.");
     return false;
   }
   

@@ -1,5 +1,5 @@
 // Implemented the Settings page for user preferences, ensuring API key security message is displayed.
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Card from '../components/Card';
 import { MultimodalProviders, AiProvider, AppSettings, BackgroundSettings, AiProviderSettings, DataSource } from '../types';
 import { getSettings, saveSettings, getAiSettings, saveAiSettings } from '../services/settingsService';
@@ -99,6 +99,7 @@ const Settings: React.FC = () => {
   const [isBgModalOpen, setIsBgModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ProviderType>('text');
   const { currentUser } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSettingChange = (key: keyof AppSettings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -140,6 +141,84 @@ const Settings: React.FC = () => {
   const handleSaveAdvancedBgSettings = (newBgSettings: BackgroundSettings) => {
     handleSettingChange('backgroundSettings', newBgSettings);
     setIsBgModalOpen(false);
+  };
+
+  const handleExport = () => {
+    try {
+      const dataToExport = {
+        projects: JSON.parse(localStorage.getItem('musicFlowProjects') || '[]'),
+        tasks: JSON.parse(localStorage.getItem('musicFlowTasks') || '[]'),
+        ideas: JSON.parse(localStorage.getItem('musicFlowIdeas') || '[]'),
+        conversations: JSON.parse(localStorage.getItem('musicFlowAssistantConversations') || '[]'),
+        settings: JSON.parse(localStorage.getItem('musicFlowAppSettings') || '{}'),
+        aiSettings: JSON.parse(localStorage.getItem('musicFlowMultimodalProviders') || '{}'),
+        userCredentials: JSON.parse(localStorage.getItem('musicFlowUserCredentials') || '{}'),
+      };
+
+      const jsonString = JSON.stringify(dataToExport, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `kireyarck-crm-backup-${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert('Dados exportados com sucesso!');
+
+    } catch (error) {
+      console.error('Falha ao exportar dados:', error);
+      alert('Ocorreu um erro ao exportar os dados.');
+    }
+  };
+
+  const handleImportChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error('Falha ao ler o arquivo.');
+        }
+        const data = JSON.parse(text);
+
+        const requiredKeys = ['projects', 'tasks', 'ideas', 'conversations', 'settings', 'aiSettings', 'userCredentials'];
+        const hasAllKeys = requiredKeys.every(key => key in data);
+        const hasValidUser = data.userCredentials && data.userCredentials.username && data.userCredentials.passwordHash;
+        
+        if (!hasAllKeys || !hasValidUser) {
+          throw new Error('Arquivo de backup inválido ou corrompido. Certifique-se de que o arquivo contém credenciais de usuário válidas.');
+        }
+
+        localStorage.setItem('musicFlowProjects', JSON.stringify(data.projects || []));
+        localStorage.setItem('musicFlowTasks', JSON.stringify(data.tasks || []));
+        localStorage.setItem('musicFlowIdeas', JSON.stringify(data.ideas || []));
+        localStorage.setItem('musicFlowAssistantConversations', JSON.stringify(data.conversations || []));
+        localStorage.setItem('musicFlowAppSettings', JSON.stringify(data.settings || {}));
+        localStorage.setItem('musicFlowMultimodalProviders', JSON.stringify(data.aiSettings || {}));
+        localStorage.setItem('musicFlowUserCredentials', JSON.stringify(data.userCredentials || {}));
+        
+        localStorage.removeItem('musicFlowUserSession');
+
+        alert('Dados importados com sucesso! A aplicação será recarregada para aplicar as alterações.');
+        window.location.reload();
+
+      } catch (error) {
+        console.error('Falha ao importar dados:', error);
+        alert(`Ocorreu um erro ao importar os dados: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      } finally {
+          if(fileInputRef.current) {
+              fileInputRef.current.value = "";
+          }
+      }
+    };
+    reader.readAsText(file);
   };
 
 
@@ -371,6 +450,38 @@ const Settings: React.FC = () => {
                 {activeTab === 'text' && <AiProviderSettingsEditor settings={aiSettings.text} onChange={(s) => handleAiSettingChange('text', s)} providerTypeLabel="Texto" />}
                 {activeTab === 'image' && <AiProviderSettingsEditor settings={aiSettings.image} onChange={(s) => handleAiSettingChange('image', s)} providerTypeLabel="Imagem" />}
                 {activeTab === 'video' && <AiProviderSettingsEditor settings={aiSettings.video} onChange={(s) => handleAiSettingChange('video', s)} providerTypeLabel="Vídeo" />}
+            </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="space-y-6">
+            <h3 className="text-lg font-medium text-cyber-text-primary">Gerenciamento de Dados</h3>
+            <p className="text-sm text-cyber-text-secondary">
+                Exporte todos os dados do seu aplicativo (projetos, ideias, configurações, etc.) para um arquivo JSON. Você pode importar este arquivo posteriormente para restaurar seu estado.
+                <br />
+                <strong className="text-amber-400">Atenção:</strong> A importação substituirá todos os dados existentes e exigirá um novo login.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-cyber-border">
+                <button
+                    onClick={handleExport}
+                    className="flex-1 bg-cyber-border hover:bg-cyber-border/80 text-cyber-text-primary font-semibold py-2 px-4 rounded-lg transition-colors"
+                >
+                    Exportar Dados
+                </button>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImportChange}
+                    className="hidden"
+                    accept="application/json"
+                />
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 bg-neon-cyan/20 hover:bg-neon-cyan/40 text-neon-cyan font-semibold py-2 px-4 rounded-lg border border-neon-cyan/50 transition-colors"
+                >
+                    Importar Dados
+                </button>
             </div>
         </div>
       </Card>
