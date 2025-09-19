@@ -4,8 +4,11 @@ import * as authService from '../services/authService';
 
 interface AuthContextType {
   currentUser: User | null;
-  login: () => Promise<void>;
+  login: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
+  signUp: (username: string, password: string, recoveryPassword: string) => Promise<boolean>;
+  recoverPassword: (username: string, recoveryPassword: string, newPassword: string) => Promise<boolean>;
+  hasUser: () => boolean;
   loading: boolean;
 }
 
@@ -24,13 +27,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(false);
   }, []);
 
-  const login = async () => {
+  const login = async (username: string, password: string) => {
     setLoading(true);
     try {
-      const user = await authService.signInWithGoogle();
-      setCurrentUser(user);
+      const user = await authService.login(username, password);
+      if (user) {
+        setCurrentUser(user);
+      }
+      return user;
     } catch (error) {
       console.error("Login failed", error);
+      return null;
     } finally {
         setLoading(false);
     }
@@ -41,10 +48,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setCurrentUser(null);
   };
 
+  const signUp = async (username: string, password: string, recoveryPassword: string) => {
+    return authService.signUp(username, password, recoveryPassword);
+  };
+  
+  const recoverPassword = async (username: string, recoveryPassword: string, newPassword: string) => {
+     return authService.recoverPassword(username, recoveryPassword, newPassword);
+  };
+  
+  const hasUser = () => {
+    return authService.hasUser();
+  };
+
   const value = {
     currentUser,
     login,
     logout,
+    signUp,
+    recoverPassword,
+    hasUser,
     loading,
   };
 

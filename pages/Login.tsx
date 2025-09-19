@@ -1,50 +1,182 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
-const Login: React.FC = () => {
-  const { login } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+type FormState = 'login' | 'signup' | 'recover';
 
-  const handleLogin = async () => {
-    setIsLoading(true);
-    await login();
-    // No need to set loading to false, as the component will unmount on successful login
+const Login: React.FC = () => {
+  const { login, signUp, recoverPassword, hasUser } = useAuth();
+  const [formState, setFormState] = useState<FormState>('login');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  // Form fields
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+
+  useEffect(() => {
+    // On mount, check if a user exists. If not, force signup.
+    if (!hasUser()) {
+      setFormState('signup');
+    }
+  }, [hasUser]);
+
+  const resetForm = () => {
+    setUsername('');
+    setPassword('');
+    setConfirmPassword('');
+    setRecoveryPassword('');
+    setError('');
+    setMessage('');
   };
 
+  const handleStateChange = (newState: FormState) => {
+    resetForm();
+    setFormState(newState);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    const user = await login(username, password);
+    if (!user) {
+      setError('Nome de usuário ou senha inválidos.');
+      setIsLoading(false);
+    }
+    // On successful login, the App component will redirect.
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    if (!recoveryPassword) {
+      setError('A contra-senha é obrigatória.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    const success = await signUp(username, password, recoveryPassword);
+    setIsLoading(false);
+
+    if (success) {
+      setMessage('Conta criada com sucesso! Faça o login para continuar.');
+      handleStateChange('login');
+    } else {
+      setError('Não foi possível criar a conta. Talvez uma já exista.');
+    }
+  };
+
+  const handleRecover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    const success = await recoverPassword(username, recoveryPassword, password);
+    setIsLoading(false);
+
+    if (success) {
+        setMessage('Senha redefinida com sucesso! Faça o login com sua nova senha.');
+        handleStateChange('login');
+    } else {
+        setError('Usuário ou contra-senha incorretos.');
+    }
+  };
+  
+  const renderForm = () => {
+    switch (formState) {
+      case 'signup':
+        return (
+          <form onSubmit={handleSignUp} className="space-y-4">
+            <h2 className="text-2xl font-semibold text-center text-cyber-text-primary">Criar Conta</h2>
+            {!hasUser() && <p className="text-sm text-center text-neon-cyan">Bem-vindo! Configure sua conta para começar.</p>}
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Usuário</label>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Senha</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+             <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Confirmar Senha</label>
+              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Contra-Senha (para recuperação)</label>
+              <input type="password" value={recoveryPassword} onChange={e => setRecoveryPassword(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <button type="submit" disabled={isLoading} className="w-full bg-neon-purple hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-all transform hover:scale-105 hover:shadow-glow-purple disabled:opacity-50">
+              {isLoading ? 'Criando...' : 'Criar Conta'}
+            </button>
+            {hasUser() && <p className="text-center text-sm">Já tem uma conta? <button type="button" onClick={() => handleStateChange('login')} className="font-semibold text-neon-cyan hover:underline">Entrar</button></p>}
+          </form>
+        );
+      case 'recover':
+        return (
+          <form onSubmit={handleRecover} className="space-y-4">
+            <h2 className="text-2xl font-semibold text-center text-cyber-text-primary">Recuperar Senha</h2>
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Usuário</label>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Contra-Senha</label>
+              <input type="password" value={recoveryPassword} onChange={e => setRecoveryPassword(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Nova Senha</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <button type="submit" disabled={isLoading} className="w-full bg-neon-purple hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-all transform hover:scale-105 hover:shadow-glow-purple disabled:opacity-50">
+              {isLoading ? 'Redefinindo...' : 'Redefinir Senha'}
+            </button>
+            <p className="text-center text-sm">Lembrou sua senha? <button type="button" onClick={() => handleStateChange('login')} className="font-semibold text-neon-cyan hover:underline">Voltar para Login</button></p>
+          </form>
+        );
+      case 'login':
+      default:
+        return (
+          <form onSubmit={handleLogin} className="space-y-4">
+             <h2 className="text-2xl font-semibold text-center text-cyber-text-primary">Login</h2>
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Usuário</label>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-cyber-text-secondary mb-1">Senha</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" required />
+            </div>
+            <button type="submit" disabled={isLoading} className="w-full bg-neon-purple hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-all transform hover:scale-105 hover:shadow-glow-purple disabled:opacity-50">
+              {isLoading ? 'Entrando...' : 'Entrar'}
+            </button>
+            <div className="text-center text-sm space-x-4">
+                <button type="button" onClick={() => handleStateChange('recover')} className="font-semibold text-neon-cyan hover:underline">Esqueceu a senha?</button>
+            </div>
+          </form>
+        );
+    }
+  }
+
   return (
-    <div className="flex items-center justify-center h-screen bg-transparent text-cyber-text-primary">
-      <div className="text-center w-full max-w-sm mx-auto p-8">
-        <div className="flex items-center justify-center mb-8">
-            <span className="text-6xl mr-4 filter grayscale brightness-200">🎵</span>
-            <h1 className="text-5xl font-bold title-animate">Kirey<span className="text-neon-purple">Arck</span></h1>
+    <div className="flex flex-col items-center justify-center h-screen bg-transparent text-cyber-text-primary p-4">
+      <div className="text-center w-full max-w-sm mx-auto mb-8">
+        <div className="flex items-center justify-center mb-4">
+          <span className="text-6xl mr-4 filter grayscale brightness-200">🎵</span>
+          <h1 className="text-5xl font-bold title-animate">Kirey<span className="text-neon-purple">Arck</span></h1>
         </div>
-        <p className="text-cyber-text-secondary mb-10">Seu estúdio criativo, potencializado por IA.</p>
-        
-        <button
-          onClick={handleLogin}
-          disabled={isLoading}
-          className="w-full flex items-center justify-center gap-3 bg-cyber-surface/80 backdrop-blur-sm border border-cyber-border rounded-lg px-6 py-3 font-semibold text-cyber-text-primary hover:border-neon-cyan hover:text-neon-cyan transition-all duration-300 disabled:opacity-50 disabled:cursor-wait"
-        >
-          {isLoading ? (
-            <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Entrando...
-            </>
-          ) : (
-            <>
-              <svg className="w-6 h-6" viewBox="0 0 48 48">
-                <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
-                <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path>
-                <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.222 0-9.618-3.217-11.283-7.66l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path>
-                <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C44.588 34.925 48 29.82 48 24c0-1.341-.138-2.65-.389-3.917z"></path>
-              </svg>
-              Entrar com Google
-            </>
-          )}
-        </button>
+        <p className="text-cyber-text-secondary">Seu estúdio criativo, potencializado por IA.</p>
+      </div>
+
+      <div className="w-full max-w-sm bg-cyber-surface/80 backdrop-blur-sm border border-cyber-border rounded-xl p-8 shadow-lg">
+          {error && <div className="bg-red-900/50 border border-red-500/50 text-red-300 text-sm rounded-md p-3 mb-4 text-center">{error}</div>}
+          {message && <div className="bg-green-900/50 border border-green-500/50 text-green-300 text-sm rounded-md p-3 mb-4 text-center">{message}</div>}
+          {renderForm()}
       </div>
     </div>
   );
