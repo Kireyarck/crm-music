@@ -13,6 +13,7 @@ interface StoredUser {
   username: string;
   passwordHash: string; // Plaintext in this mock
   recoveryPasswordHash: string; // Plaintext in this mock
+  picture?: string;
 }
 
 /**
@@ -51,6 +52,7 @@ export const signUp = async (username: string, password: string, recoveryPasswor
     username,
     passwordHash: password, // Storing plaintext - INSECURE
     recoveryPasswordHash: recoveryPassword, // Storing plaintext - INSECURE
+    picture: `https://i.pravatar.cc/150?u=${username}`,
   };
 
   try {
@@ -78,7 +80,7 @@ export const login = async (username: string, password: string): Promise<User | 
       const userSession: User = {
         name: storedUser.username,
         email: `${storedUser.username}@example.com`, // Mock email
-        picture: `https://i.pravatar.cc/150?u=${storedUser.username}`,
+        picture: storedUser.picture || `https://i.pravatar.cc/150?u=${storedUser.username}`,
       };
       // Store a session object to indicate the user is logged in
       localStorage.setItem(USER_SESSION_KEY, JSON.stringify(userSession));
@@ -143,4 +145,27 @@ export const getCurrentUser = (): User | null => {
     console.error("Failed to retrieve user from localStorage:", error);
     return null;
   }
+};
+
+export const updateProfilePicture = async (newPicture: string): Promise<User | null> => {
+    try {
+        // Update session
+        const currentUser = getCurrentUser();
+        if (!currentUser) return null;
+        const updatedUserSession = { ...currentUser, picture: newPicture };
+        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(updatedUserSession));
+
+        // Update permanent credentials
+        const storedCredentialsJson = localStorage.getItem(USER_CREDENTIALS_KEY);
+        if (storedCredentialsJson) {
+            const storedUser: StoredUser = JSON.parse(storedCredentialsJson);
+            const updatedStoredUser = { ...storedUser, picture: newPicture };
+            localStorage.setItem(USER_CREDENTIALS_KEY, JSON.stringify(updatedStoredUser));
+        }
+        
+        return updatedUserSession;
+    } catch (error) {
+        console.error("Failed to update profile picture:", error);
+        return null;
+    }
 };

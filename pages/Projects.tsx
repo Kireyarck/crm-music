@@ -149,7 +149,7 @@ const Projects: React.FC = () => {
         onClose={() => setProjectToDelete(null)}
         onConfirm={handleConfirmDelete}
         title="Excluir Projeto"
-        message={`Are you sure you want to delete this project? '${projectToDelete?.title}'`}
+        message={`Tem certeza que deseja excluir o projeto '${projectToDelete?.title}'?`}
       />
     </div>
   );

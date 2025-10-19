@@ -10,6 +10,7 @@ interface AuthContextType {
   recoverPassword: (username: string, recoveryPassword: string, newPassword: string) => Promise<boolean>;
   hasUser: () => boolean;
   loading: boolean;
+  updateProfilePicture: (newPicture: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +61,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return authService.hasUser();
   };
 
+  const updateProfilePicture = async (newPicture: string) => {
+    const updatedUser = await authService.updateProfilePicture(newPicture);
+    if (updatedUser) {
+      setCurrentUser(updatedUser);
+    }
+  };
+
   const value = {
     currentUser,
     login,
@@ -68,6 +76,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     recoverPassword,
     hasUser,
     loading,
+    updateProfilePicture,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

@@ -18,6 +18,7 @@ export interface AudioVersion {
   id: number;
   name: string;
   url: string;
+  versionType: 'demo' | 'final';
 }
 
 export interface Track {
@@ -25,7 +26,7 @@ export interface Track {
   number: number;
   title: string;
   description: string;
-  themes: string[];
+  status: 'Planejada' | 'Iniciada' | 'Finalizada' | 'Mixagem';
   lyrics?: string;
   objective?: string;
   creativeNotes?: string;
@@ -33,11 +34,13 @@ export interface Track {
   audioVersions?: AudioVersion[];
 }
 
+export type ProjectType = 'Álbum' | 'Single' | 'Música' | 'Demo' | 'Sem tipo';
+
 export interface Project {
   id: number;
   title: string;
   description: string;
-  type: string;
+  type: ProjectType;
   status: 'Em Andamento' | 'Concluído' | 'Planejado';
   color: string;
   tags: string[];

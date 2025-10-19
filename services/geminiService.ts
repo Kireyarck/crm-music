@@ -1,6 +1,5 @@
 // Implemented Gemini API service functions adhering to coding guidelines.
 import { GoogleGenAI } from "@google/genai";
-import { Idea, ChatMessage } from "../types";
 import { getAiSettings } from "./settingsService";
 
 let ai: GoogleGenAI | null = null;
@@ -39,48 +38,6 @@ const fileToGenerativePart = async (file: File) => {
   return {
     inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
   };
-};
-
-export const getCreativeResponse = async (
-  idea: Idea,
-  history: ChatMessage[],
-  newMessage: string
-): Promise<string> => {
-  const aiSettings = getAiSettings();
-  if (aiSettings.text.provider !== 'default') {
-    return `[RESPOSTA SIMULADA DO PROVEDOR: ${aiSettings.text.provider.toUpperCase()}]\n\nAnalisando a ideia "${idea.title}" para sugerir novos caminhos criativos para sua mensagem: "${newMessage}"`;
-  }
-
-  // FIX: Use the recommended 'gemini-2.5-flash' model.
-  const model = "gemini-2.5-flash";
-  const systemInstruction = `You are a creative assistant for a musician. 
-Your goal is to help them develop a musical idea.
-The current idea is titled "${idea.title}" and is described as: "${idea.content}".
-Keep your responses concise, inspiring, and focused on musical creativity.`;
-
-  const contents = [
-    ...history.map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }]
-    })),
-    { role: 'user', parts: [{ text: newMessage }] }
-  ];
-
-  try {
-    const response = await getAiClient().models.generateContent({
-      model,
-      contents,
-      config: {
-        systemInstruction,
-      },
-    });
-
-    // FIX: Access response text directly via the .text property as per guidelines.
-    return response.text;
-  } catch (error) {
-    console.error("Error generating creative response:", error);
-    throw new Error("Failed to communicate with the creative assistant.");
-  }
 };
 
 export const transcribeAudio = async (audioFile: File): Promise<string> => {

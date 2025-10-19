@@ -98,8 +98,10 @@ const Settings: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isBgModalOpen, setIsBgModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ProviderType>('text');
-  const { currentUser } = useAuth();
+  const { currentUser, updateProfilePicture } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profilePicInputRef = useRef<HTMLInputElement>(null);
+  const [tempProfilePic, setTempProfilePic] = useState<string | null>(null);
 
   const handleSettingChange = (key: keyof AppSettings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -111,14 +113,26 @@ const Settings: React.FC = () => {
     setSaveStatus('idle');
   }
 
+  const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === 'string') {
+          setTempProfilePic(result);
+          setSaveStatus('idle');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'image' | 'video') => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        // FIX: The type of reader.result was not being narrowed correctly inside this callback.
-        // Assigning it to a local constant `result` allows TypeScript's control flow analysis
-        // to correctly infer it as a string, fixing the type error.
         const result = reader.result;
         if (typeof result === 'string') {
           if (fileType === 'image') {
@@ -145,15 +159,12 @@ const Settings: React.FC = () => {
 
   const handleExport = () => {
     try {
-      const dataToExport = {
-        projects: JSON.parse(localStorage.getItem('musicFlowProjects') || '[]'),
-        tasks: JSON.parse(localStorage.getItem('musicFlowTasks') || '[]'),
-        ideas: JSON.parse(localStorage.getItem('musicFlowIdeas') || '[]'),
-        conversations: JSON.parse(localStorage.getItem('musicFlowAssistantConversations') || '[]'),
-        settings: JSON.parse(localStorage.getItem('musicFlowAppSettings') || '{}'),
-        aiSettings: JSON.parse(localStorage.getItem('musicFlowMultimodalProviders') || '{}'),
-        userCredentials: JSON.parse(localStorage.getItem('musicFlowUserCredentials') || '{}'),
-      };
+      const dataToExport: { [key: string]: any } = {};
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('musicFlow')) {
+          dataToExport[key] = JSON.parse(localStorage.getItem(key)!);
+        }
+      });
 
       const jsonString = JSON.stringify(dataToExport, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
@@ -188,21 +199,13 @@ const Settings: React.FC = () => {
         }
         const data = JSON.parse(text);
 
-        const requiredKeys = ['projects', 'tasks', 'ideas', 'conversations', 'settings', 'aiSettings', 'userCredentials'];
-        const hasAllKeys = requiredKeys.every(key => key in data);
-        const hasValidUser = data.userCredentials && data.userCredentials.username && data.userCredentials.passwordHash;
-        
-        if (!hasAllKeys || !hasValidUser) {
-          throw new Error('Arquivo de backup inválido ou corrompido. Certifique-se de que o arquivo contém credenciais de usuário válidas.');
+        if (!data.musicFlowUserCredentials) {
+            throw new Error('Arquivo de backup inválido ou corrompido.');
         }
 
-        localStorage.setItem('musicFlowProjects', JSON.stringify(data.projects || []));
-        localStorage.setItem('musicFlowTasks', JSON.stringify(data.tasks || []));
-        localStorage.setItem('musicFlowIdeas', JSON.stringify(data.ideas || []));
-        localStorage.setItem('musicFlowAssistantConversations', JSON.stringify(data.conversations || []));
-        localStorage.setItem('musicFlowAppSettings', JSON.stringify(data.settings || {}));
-        localStorage.setItem('musicFlowMultimodalProviders', JSON.stringify(data.aiSettings || {}));
-        localStorage.setItem('musicFlowUserCredentials', JSON.stringify(data.userCredentials || {}));
+        Object.keys(data).forEach(key => {
+            localStorage.setItem(key, JSON.stringify(data[key]));
+        });
         
         localStorage.removeItem('musicFlowUserSession');
 
@@ -222,8 +225,12 @@ const Settings: React.FC = () => {
   };
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaveStatus('saving');
+    if (tempProfilePic) {
+      await updateProfilePicture(tempProfilePic);
+      setTempProfilePic(null);
+    }
     saveSettings(settings);
     saveAiSettings(aiSettings);
     window.dispatchEvent(new CustomEvent('settings_updated'));
@@ -240,6 +247,7 @@ const Settings: React.FC = () => {
   ];
   
   const hasWallpaper = settings.backgroundWallpaper || settings.backgroundVideo;
+  const displayPicture = tempProfilePic || currentUser?.picture;
 
   return (
     <>
@@ -252,17 +260,37 @@ const Settings: React.FC = () => {
           
           <div>
             <label className="block text-sm font-medium text-cyber-text-secondary mb-2">
-                Foto de Perfil (via Google)
+                Foto de Perfil
             </label>
-            <div className="flex items-center space-x-4">
-                {currentUser?.picture ? (
-                    <img src={currentUser.picture} alt="Foto de Perfil" className="w-16 h-16 rounded-full object-cover" />
-                ) : (
-                    <div className="w-16 h-16 rounded-full bg-neon-purple flex items-center justify-center font-bold text-2xl">
-                        {currentUser?.name?.[0]}
+             <div className="flex items-center space-x-4">
+                <input
+                    type="file"
+                    ref={profilePicInputRef}
+                    onChange={handleProfilePicChange}
+                    className="hidden"
+                    accept="image/*"
+                />
+                <button
+                    type="button"
+                    onClick={() => profilePicInputRef.current?.click()}
+                    className="relative group focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-cyber-surface focus:ring-neon-purple rounded-full"
+                    aria-label="Alterar foto de perfil"
+                >
+                    {displayPicture ? (
+                        <img src={displayPicture} alt="Foto de Perfil" className="w-16 h-16 rounded-full object-cover group-hover:opacity-60 transition-opacity" />
+                    ) : (
+                        <div className="w-16 h-16 rounded-full bg-neon-purple flex items-center justify-center font-bold text-2xl group-hover:opacity-60 transition-opacity">
+                            {currentUser?.name?.[0]}
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
                     </div>
-                )}
-                <p className="text-sm text-cyber-text-secondary">Sua foto de perfil é gerenciada pela sua conta Google.</p>
+                </button>
+                <p className="text-sm text-cyber-text-secondary">Clique na imagem para alterar. A mudança será aplicada ao salvar.</p>
             </div>
           </div>
           
@@ -486,7 +514,7 @@ const Settings: React.FC = () => {
         </div>
       </Card>
 
-       <div className="flex justify-end">
+       <div className="flex justify-end pb-8">
         <button
           onClick={handleSave}
           className="bg-neon-purple hover:bg-purple-500 text-white font-semibold py-2 px-6 rounded-lg transition-all transform hover:scale-105 hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed"
