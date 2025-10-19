@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import Ideas from './pages/Ideas';
+import Tasks from './pages/Tasks';
 import PlaceholderPage from './pages/PlaceholderPage';
 import Settings from './pages/Settings';
 import Assistant from './pages/Assistant';
@@ -46,7 +47,7 @@ const App: React.FC = () => {
       case 'Assistente':
         return <Assistant />;
       case 'Tarefas':
-        return <PlaceholderPage title="Tarefas" />;
+        return <Tasks />;
       case 'Contatos':
         return <PlaceholderPage title="Contatos" />;
       case 'Configurações':

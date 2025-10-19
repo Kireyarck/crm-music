@@ -44,7 +44,7 @@ const Projects: React.FC = () => {
       id: Date.now(),
       title: 'Novo Projeto',
       description: '',
-      type: 'Sem tipo',
+      type: 'Álbum',
       status: 'Planejado',
       color: '',
       tags: [],

@@ -34,7 +34,7 @@ export interface Track {
   audioVersions?: AudioVersion[];
 }
 
-export type ProjectType = 'Álbum' | 'Single' | 'Música' | 'Demo' | 'Sem tipo';
+export type ProjectType = 'Álbum' | 'Single';
 
 export interface Project {
   id: number;
@@ -52,6 +52,7 @@ export interface Project {
 export interface Task {
   id: number;
   title: string;
+  description?: string;
   project: string;
   dueDate: string;
   priority: 'Alta' | 'Média' | 'Baixa';

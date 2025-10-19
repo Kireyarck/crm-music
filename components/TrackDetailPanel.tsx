@@ -73,13 +73,22 @@ const TrackDetailPanel: React.FC<TrackDetailPanelProps> = ({ track, onUpdate, on
     setLocalTrack(prev => ({...prev, audioVersions: updatedVersions }));
   };
 
-  const handleGetAIFeedback = async (type: 'lyrics' | 'music' | 'mixing') => {
+  const handleGetAIFeedback = async (type: 'lyrics' | 'music' | 'mixing' | 'comprehensive') => {
     setIsGeneratingFeedback(true);
     setAiFeedback(null);
     try {
         let title = '';
         let content = '';
-        if (type === 'lyrics' && localTrack.lyrics) {
+        if (type === 'comprehensive') {
+            const audioToAnalyze = localTrack.audioVersions?.[0];
+            if (!audioToAnalyze) {
+                alert('Por favor, adicione uma versão de áudio para a análise completa.');
+                setIsGeneratingFeedback(false);
+                return;
+            }
+            title = 'Análise Completa da Faixa (Áudio + Letra)';
+            content = await assistantService.getComprehensiveTrackAnalysis(localTrack, audioToAnalyze);
+        } else if (type === 'lyrics' && localTrack.lyrics) {
             title = 'Feedback da Letra';
             content = await assistantService.getLyricsFeedback(localTrack.lyrics);
         } else if (type === 'music') {
@@ -130,16 +139,18 @@ const TrackDetailPanel: React.FC<TrackDetailPanelProps> = ({ track, onUpdate, on
             <div className="space-y-3 mb-4">
               {(localTrack.audioVersions || []).length > 0 ? (
                 localTrack.audioVersions?.map(version => (
-                  <div key={version.id} className="flex flex-col sm:flex-row items-center justify-between p-3 bg-cyber-border/50 rounded-md gap-3">
-                    <p className="text-sm text-cyber-text-primary truncate" title={version.name}>{version.name}</p>
-                    <div className="flex items-center gap-2">
-                        <select value={version.versionType} onChange={(e) => handleAudioVersionTypeChange(version.id, e.target.value as 'demo' | 'final')} className="bg-cyber-bg border border-cyber-border rounded text-xs py-0.5 px-1">
+                  <div key={version.id} className="flex flex-col md:flex-row items-center justify-between p-3 bg-cyber-border/50 rounded-md gap-3">
+                    <p className="text-sm font-medium text-cyber-text-primary truncate flex-shrink-0" title={version.name}>{version.name}</p>
+                    <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                        <select value={version.versionType} onChange={(e) => handleAudioVersionTypeChange(version.id, e.target.value as 'demo' | 'final')} className="bg-cyber-bg border border-cyber-border rounded text-xs py-1 px-2">
                             <option value="demo">Demo</option>
                             <option value="final">Final</option>
                         </select>
-                        <audio controls src={version.url} className="h-8 w-48 sm:w-64"></audio>
+                        <audio controls src={version.url} className="h-8 flex-1 max-w-xs"></audio>
                         <button onClick={() => handleRemoveAudio(version.id)} className="p-1.5 text-cyber-text-secondary hover:text-red-500" aria-label={`Remover ${version.name}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                         </button>
                     </div>
                   </div>
@@ -153,12 +164,15 @@ const TrackDetailPanel: React.FC<TrackDetailPanelProps> = ({ track, onUpdate, on
         {/* AI Feedback Section */}
         <div className="p-4 bg-cyber-bg rounded-lg border border-cyber-border">
             <h4 className="text-lg font-semibold text-cyber-text-primary mb-4">Assistente Criativo AI</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button onClick={() => handleGetAIFeedback('comprehensive')} disabled={isGeneratingFeedback || !localTrack.audioVersions || localTrack.audioVersions.length === 0} className="col-span-1 sm:col-span-2 text-sm bg-neon-cyan/20 hover:bg-neon-cyan/40 text-neon-cyan font-semibold py-2 px-2 rounded-md transition-colors disabled:opacity-50 border border-neon-cyan/50">
+                    Análise Completa (Áudio + Letra)
+                </button>
                 <button onClick={() => handleGetAIFeedback('lyrics')} disabled={isGeneratingFeedback || !localTrack.lyrics} className="text-sm bg-cyber-border hover:bg-cyber-border/80 font-semibold py-2 px-2 rounded-md transition-colors disabled:opacity-50">Analisar Letra</button>
                 <button onClick={() => handleGetAIFeedback('music')} disabled={isGeneratingFeedback} className="text-sm bg-cyber-border hover:bg-cyber-border/80 font-semibold py-2 px-2 rounded-md transition-colors disabled:opacity-50">Feedback Geral</button>
-                <button onClick={() => handleGetAIFeedback('mixing')} disabled={isGeneratingFeedback || !localTrack.technicalNotes} className="text-sm bg-cyber-border hover:bg-cyber-border/80 font-semibold py-2 px-2 rounded-md transition-colors disabled:opacity-50">Dicas de Mixagem</button>
+                <button onClick={() => handleGetAIFeedback('mixing')} disabled={isGeneratingFeedback || !localTrack.technicalNotes} className="text-sm bg-cyber-border hover:bg-cyber-border/80 font-semibold py-2 px-2 rounded-md transition-colors disabled:opacity-50 col-span-1 sm:col-span-2">Dicas de Mixagem</button>
             </div>
-            {isGeneratingFeedback && <p className="text-sm text-center text-cyber-text-secondary italic mt-4">🤖 Gerando feedback...</p>}
+            {isGeneratingFeedback && <p className="text-sm text-center text-cyber-text-secondary italic mt-4">🤖 Gerando feedback... isso pode levar um minuto.</p>}
             {aiFeedback && <AiFeedbackDisplay title={aiFeedback.title} content={aiFeedback.content} onClear={() => setAiFeedback(null)} />}
         </div>
         

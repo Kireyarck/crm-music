@@ -39,14 +39,19 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, onUpdate,
     setFormData(newFormData);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     const updatedProject = {
       ...formData,
       tags: tagString.split(',').map(tag => tag.trim()).filter(Boolean),
     };
     onUpdate(updatedProject);
   };
+  
+  const handleCloseAndSave = () => {
+    handleSubmit();
+  };
+
 
   const createNewTrack = (): Track => ({
     id: Date.now(),
@@ -100,7 +105,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, onUpdate,
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+      onClick={handleCloseAndSave}
     >
       <form 
         onSubmit={handleSubmit}
@@ -111,7 +116,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, onUpdate,
           <div>
             <h2 className="text-2xl font-bold text-cyber-text-primary">{isCreating ? 'Novo Projeto' : 'Editar Projeto'}</h2>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-cyber-border transition-colors" aria-label="Fechar modal">
+          <button type="button" onClick={handleCloseAndSave} className="p-2 rounded-full hover:bg-cyber-border transition-colors" aria-label="Fechar modal">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </header>
@@ -123,11 +128,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, onUpdate,
             <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple" placeholder="Descrição / Objetivo do Projeto"></textarea>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <select name="type" value={formData.type} onChange={handleChange} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple">
-                    <option value="Sem tipo">Sem tipo</option>
                     <option value="Álbum">Álbum</option>
                     <option value="Single">Single</option>
-                    <option value="Música">Música</option>
-                    <option value="Demo">Demo</option>
                 </select>
                 <select name="status" value={formData.status} onChange={handleChange} className="w-full bg-cyber-bg border border-cyber-border rounded-md py-2 px-3 text-cyber-text-primary focus:outline-none focus:ring-2 focus:ring-neon-purple">
                     <option value="Planejado">Planejado</option>
@@ -137,7 +139,23 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, onUpdate,
             </div>
           </div>
 
-          {/* Tracks Section (Only for Albums) */}
+          {/* Single Track Section */}
+          {formData.type === 'Single' && formData.tracks && formData.tracks.length > 0 && (
+             <div className="pt-5 mt-5 border-t border-cyber-border">
+                <h3 className="text-lg font-semibold text-cyber-text-primary mb-2">Faixa Principal</h3>
+                <div className="flex items-center justify-between p-3 bg-cyber-border/30 rounded-lg">
+                    <div>
+                        <p className="font-medium text-cyber-text-primary">{formData.tracks[0].title}</p>
+                        <p className="text-xs text-cyber-text-secondary">{formData.tracks[0].status}</p>
+                    </div>
+                    <button type="button" onClick={() => setEditingTrack(formData.tracks![0])} className="text-sm font-semibold text-neon-purple hover:underline">
+                        Editar Detalhes da Faixa
+                    </button>
+                </div>
+            </div>
+          )}
+
+          {/* Album Tracks Section */}
           {formData.type === 'Álbum' && (
             <div className="pt-5 mt-5 border-t border-cyber-border">
               <div className="flex justify-between items-center mb-4">
@@ -156,7 +174,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, onUpdate,
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => setEditingTrack(track)} className="text-sm font-semibold text-neon-purple hover:underline">Editar</button>
                       <button type="button" onClick={() => handleDeleteTrack(track.id)} className="p-1 text-cyber-text-secondary hover:text-red-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   </div>

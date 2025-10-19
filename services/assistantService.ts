@@ -1,6 +1,6 @@
 // Implemented AI assistant service for creative feedback.
 import { GoogleGenAI } from "@google/genai";
-import { Track } from "../types";
+import { Track, AudioVersion } from "../types";
 
 let ai: GoogleGenAI | null = null;
 
@@ -29,6 +29,53 @@ const callGemini = async (prompt: string): Promise<string> => {
         throw new Error('Falha na comunicação com a IA.');
     }
 };
+
+const dataUrlToGenerativePart = async (dataUrl: string) => {
+  const [header, base64Data] = dataUrl.split(',');
+  const mimeType = header.match(/:(.*?);/)?.[1] || 'application/octet-stream';
+  return {
+    inlineData: {
+      data: base64Data,
+      mimeType,
+    },
+  };
+};
+
+export const getComprehensiveTrackAnalysis = async (track: Track, audioVersion: AudioVersion): Promise<string> => {
+    const audioPart = await dataUrlToGenerativePart(audioVersion.url);
+    
+    const prompt = `Você é um produtor musical e engenheiro de áudio experiente. Analise a faixa de áudio fornecida e seus metadados. Forneça uma crítica construtiva e detalhada em português, estruturada nas seguintes seções:
+    
+1.  **Primeiras Impressões:** Sua reação inicial. O que se destaca? Qual é o "vibe" da música?
+2.  **Análise da Letra:** (Se houver letra) Avalie o tema, imagens, estrutura e impacto emocional.
+3.  **Análise Musical e Instrumental:**
+    *   **Arranjo:** Como os instrumentos funcionam juntos? A estrutura (intro, verso, refrão) é eficaz?
+    *   **Performance:** Comente sobre a performance vocal (se houver) e a execução instrumental. Eles transmitem a emoção certa?
+    *   **Timbre e Sons:** Discuta a escolha de sons, texturas e timbres dos instrumentos.
+4.  **Análise Técnica (Mixagem):**
+    *   **Clareza e Equilíbrio:** Todos os elementos são audíveis? Há um bom equilíbrio entre graves, médios e agudos?
+    *   **Dinâmica:** Como está a faixa dinâmica? A compressão é eficaz ou excessiva?
+    *   **Imagem Estéreo:** Como o espaço estéreo é usado? O posicionamento (panning) é interessante?
+5.  **Sugestões e Próximos Passos:** Forneça 3 a 5 sugestões práticas para melhorar a faixa, desde a composição até a mixagem final.
+
+**Metadados da Faixa:**
+- Título: ${track.title}
+- Objetivo: ${track.objective || 'Não definido'}
+- Notas Criativas: ${track.creativeNotes || 'Não definido'}
+- Letras:
+---
+${track.lyrics || '(Sem letra fornecida)'}
+---
+Agora, analise o áudio fornecido.`;
+
+    const model = 'gemini-2.5-flash';
+    const response = await getAiClient().models.generateContent({
+        model,
+        contents: { parts: [audioPart, { text: prompt }] },
+    });
+    return response.text;
+};
+
 
 export const getLyricsFeedback = async (lyrics: string): Promise<string> => {
     const prompt = `Você é um compositor e coach de escrita de canções experiente. Analise a seguinte letra de música e forneça um feedback construtivo em português. Foque em:
